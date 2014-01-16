@@ -192,9 +192,27 @@ def download(url,title,type,i=0):
 
 def merge(files):
 	"""Merge files into one."""
-	ns = re.search(r'(.*?)\-\d+\-\.([a-zA-Z]+)', file[0])
-	print ns.group(1), ns.group(2)
-	#(name, suffix) = 
+	ns = re.search(r'(.*?)\-\d+\.([a-zA-Z0-9]+)', files[0])
+	try:
+                (name, suffix) = ns.group(1), ns.group(2)
+        except:
+                print "Filename parsing error!"
+                return
+        fullname = name + '.' + suffix
+        open(fullname,'w').close()
+        f = open(fullname, 'a+b')
+        print "Merging files..."
+        for fp in files:
+                fpd = open(fp,'rb')
+                fs = fpd.read()
+                fpd.close()
+                f.write(fs)
+        f.close()
+        print "File:\"%s\" have been merge!" % (fullname)
+        print "Deleting temp files...",
+        for fp in files:
+                os.remove(fp)
+        print "Done"
 
 def Usage():
 	"Usage function."
@@ -233,8 +251,8 @@ def main():
 			if filename:
 				files.append(filename)
 			i += 1
-	if files:
-		merge(files)
+	#if files:
+	#	merge(files)
 		
 if __name__ == '__main__':
 	main()
