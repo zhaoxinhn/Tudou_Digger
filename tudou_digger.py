@@ -10,15 +10,15 @@ import os,sys
 import urllib,re
 
 class videoHtml(object):
-	def __init__(self,url):
+	def __init__(self,url='',vcode='',title=''):
 		# setting initial variables
 		self.rs = ''
 		self.html = ''
 		self.vhtml = ''
 		self.qs = []
 		self.vurl = ''
-		self.title = ''
-		self.vcode = ''
+		self.title = title
+		self.vcode = vcode
 		self.q = ''
 		self.k = ''
 		self.parts = []
@@ -108,7 +108,6 @@ class videoHtml(object):
 
 	def parseVcode(self):
 		"parse vcode"
-		print self.vurl
 		#url = 'http://v.youku.com/player/getPlayList/VideoIDS/' + self.vcode
 		url = 'http://v.youku.com/player/getPlayList/VideoIDS/' + self.vcode + '/timezone/+08/version/5/source/out/Sc/2?n=3&ran=9109&password='
 		tempHtml = ''
@@ -130,29 +129,24 @@ class videoHtml(object):
 			d[s] = i
 
         	ids = []
-        	for stream in ['mp4','hd3','hd2','flv']:
+        	for stream in ['hd3','hd2','mp4','flv']:
             		try:
                 		ids = d[stream].split('*')[:-1]
 				break
             		except:
                 		continue
-		
-		key = ''
-		#if len(ids) ==3:
-		#	key = '030008040152CA77D64D5A1468DEFE3119FD95-CA53-5025-B539-7AADE8B9AF57_'
+		if stream == 'mp4':
+			f_type = 'mp4'
+		else:
+			f_type = 'flv'
 		
 		s = list("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ/\\:._-1234567890")
         	mixed = ''
-		ins = []
         	while s:
 			seed = (seed * 211 + 30031) & 0xFFFF
         		index = seed * len(s) >> 16
         		c = s.pop(index)
         		mixed += c
-			ins.append(index)
-		print mixed,''.join(mixed[int(i)] for i in ins)
-		print len(ids), ids
-		print len(ins), ins
         	vid = ''.join(mixed[int(i)] for i in ids)
 
 		pattern = r'\"%s\"\:\[\{(\"no\".*?)}]' % (stream)
@@ -161,14 +155,10 @@ class videoHtml(object):
 		for partinfo in partinfos:
 			info = partinfo.replace('"','').split(',')
 			partno = info[0].split(':')[1]
-			key2 = info[3].split(':')[1]
+			key = info[3].split(':')[1]
 			no = '%02x' % int(partno)
-			if key:
-				key1 = key + '%02d' % int(partno)
-				self.vurls.append('http://f.youku.com/player/getFlvPath/sid/00_00/st/%s/fileid/%s?K=%s' % (stream, key1, key2))
-			else:
-				self.vurls.append('http://f.youku.com/player/getFlvPath/sid/00_00/st/%s/fileid/%s?K=%s' % (stream, vid[:8]+no.upper()+vid[10:],key2))
-		print self.vurls
+			self.vurls.append('http://f.youku.com/player/getFlvPath/sid/00_00/st/%s/fileid/%s?K=%s' % (f_type, vid[:8]+no.upper()+vid[10:],key))
+		return
 		
 
 def download(url,title,type,i=0):
@@ -180,10 +170,11 @@ def download(url,title,type,i=0):
 		suffix = re.search(r'http:\/\/.*?st\/(.*?)\/fileid', url).group(1)
 	else:
 		suffix = ''
-	filename = ''.join([title,'-',str(i),'.',suffix])
+	filename = ''.join([title,'-','%02d' % i,'.',suffix])
 	try:
 		print "downloading \"%s\"..." % (filename)
-		urllib.urlretrieve(url,filename)
+		if not os.path.isfile(filename):
+			urllib.urlretrieve(url,filename)
 		print "file \"%s\" has been saved!" % (filename)
 		return filename
 	except:
@@ -199,20 +190,24 @@ def merge(files):
                 print "Filename parsing error!"
                 return
         fullname = name + '.' + suffix
-        open(fullname,'w').close()
-        f = open(fullname, 'a+b')
-        print "Merging files..."
-        for fp in files:
-                fpd = open(fp,'rb')
-                fs = fpd.read()
-                fpd.close()
-                f.write(fs)
-        f.close()
-        print "File:\"%s\" have been merge!" % (fullname)
-        print "Deleting temp files...",
-        for fp in files:
-                os.remove(fp)
-        print "Done"
+	if suffix == 'flv':
+		from flv_join import concat_flvs as concat
+		
+	elif suffix == 'mp4':
+		from mp4_join import concat_mp4s as concat
+	else:
+		concat = ''
+	
+	if concat:
+		concat(files, fullname)
+        	print "Deleting temp files...",
+        	for fp in files:
+                	os.remove(fp)
+        	print "Done"
+		print "File:\"%s\" have been merge!" % (fullname)
+       	else:
+		print "File type not supported!"
+
 
 def Usage():
 	"Usage function."
@@ -231,6 +226,7 @@ def judgeUrl(url):
 
 def main():
 	"main function"
+	assert len(sys.argv) == 3, Usage()
 	if len(sys.argv) != 3:
 		Usage()
 	elif sys.argv[1] not in ['v','l']:
@@ -239,9 +235,46 @@ def main():
 		print '***Illegal url given***'
 		print 'Currently only \"tudou.com\" supported!'
 		Usage()
+	if sys.argv[1] == 'v':
+		singleDownload(sys.argv[2])
+	else:
+		albumDownload(sys.argv[2])
 
-	vHtml = videoHtml(sys.argv[2])
-	vHtml.fetchHtml()
+def albumDownload(url):
+	try:
+		fs = urllib.urlopen(url).read().decode('utf-8')
+	except:
+		fs = urllib.urlopen(url).read().decode('gbk')
+	
+	if not fs:
+		print "Cannot download given album!"
+		return
+	title = re.search(r'title:\s*\'(.*)\'\s*,',fs).group(1).encode('utf-8')
+	soku_url = 'http://www.soku.com/v?keyword=' + repr(title).replace(r'\x','%')[1:-1]
+
+	try:
+		fs = urllib.urlopen(soku_url).read().decode('utf-8')
+	except:
+		fs = urllib.urlopen(soku_url).read().decode('gbk')
+	if not fs:
+		print "Cannot download given album!"
+		return
+
+	pattern = r'<a\s+href=\'(http\:\/\/.*?tudou.com/.*?.html)\'.*?\>(\d+)\<'
+	vs = re.findall(pattern, fs, re.S)
+
+	for (url,seq) in vs:
+		singleDownload(url)#,title=str(cs.index(c)+1))
+
+def singleDownload(url='',code='',title=''):
+	assert url or code, "Argument error!"
+	if code:
+		assert title
+	if url:
+		vHtml = videoHtml(url)	
+		vHtml.fetchHtml()
+	else:
+		vHtml = videoHtml(vcode=code,title=title)
 	vHtml.parse()
 	files = []
 	if vHtml.vurls:
@@ -251,8 +284,8 @@ def main():
 			if filename:
 				files.append(filename)
 			i += 1
-	#if files:
-	#	merge(files)
+	if files:
+		merge(files)
 		
 if __name__ == '__main__':
 	main()
