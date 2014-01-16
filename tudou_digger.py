@@ -185,8 +185,16 @@ def download(url,title,type,i=0):
 		print "downloading \"%s\"..." % (filename)
 		urllib.urlretrieve(url,filename)
 		print "file \"%s\" has been saved!" % (filename)
+		return filename
 	except:
 		print "Downlaod failed!"
+		return
+
+def merge(files):
+	"""Merge files into one."""
+	ns = re.search(r'(.*?)\-\d+\-\.([a-zA-Z]+)', file[0])
+	print ns.group(1), ns.group(2)
+	#(name, suffix) = 
 
 def Usage():
 	"Usage function."
@@ -217,11 +225,16 @@ def main():
 	vHtml = videoHtml(sys.argv[2])
 	vHtml.fetchHtml()
 	vHtml.parse()
+	files = []
 	if vHtml.vurls:
 		i = 0
 		for url in vHtml.vurls:
-			download(url,vHtml.title, vHtml.type,i)
+			filename = download(url,vHtml.title, vHtml.type,i)
+			if filename:
+				files.append(filename)
 			i += 1
-
+	if files:
+		merge(files)
+		
 if __name__ == '__main__':
 	main()
