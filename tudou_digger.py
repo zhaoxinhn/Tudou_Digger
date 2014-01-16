@@ -109,7 +109,8 @@ class videoHtml(object):
 	def parseVcode(self):
 		"parse vcode"
 		print self.vurl
-		url = 'http://v.youku.com/player/getPlayList/VideoIDS/' + self.vcode
+		#url = 'http://v.youku.com/player/getPlayList/VideoIDS/' + self.vcode
+		url = 'http://v.youku.com/player/getPlayList/VideoIDS/' + self.vcode + '/timezone/+08/version/5/source/out/Sc/2?n=3&ran=9109&password='
 		tempHtml = ''
 		try:
 			tempHtml = urllib.urlopen(url).read()
