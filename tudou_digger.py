@@ -227,7 +227,7 @@ def download(url,title,type,i=0):
 		print "\nFile \"%s\" has been saved!" % (filename)
 		return filename
 	except KeyboardInterrupt:
-		print "Manually interupted,cleaning..."
+		print "\nManually interupted,cleaning..."
 		if os.path.exists(filename):
 			os.remove(filename)
 		print "Done!"
