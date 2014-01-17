@@ -10,6 +10,8 @@ import os,sys
 import urllib,re
 from time import time
 
+outputDir = '/Volumes/HDD_OSX_Data/Video'
+
 class videoHtml(object):
 	def __init__(self,url='',vcode='',title=''):
 		# setting initial variables
@@ -171,14 +173,19 @@ def getFullname(partname):
                 return
         fullname = name + '.' + suffix
 	return (fullname, suffix)
+
+class Printer():
+	def __init__(self,data):
+		sys.stdout.write("\r\x1b[K" + data.__str__())
+		sys.stdout.flush()
 	
 def cbk(a, b, c): 
 	'''回调函数 @a: 已经下载的数据块  @b: 数据块的大小  @c: 远程文件的大小'''
 	per = 100.0 * a * b / c 
     	if per > 100: 
         	per = 100 
-    	#print '%.2f%%' % per,	
-	#time.sleep(1)
+	text = '------Completed percentage: %.2f%%-------' % per
+	Printer(text)
 
 def judgeAvailable(filename, url):
 	"""Judge if existing filename correctly downloaded from url."""
@@ -203,19 +210,21 @@ def download(url,title,type,i=0):
 		suffix = ''
 	filename = ''.join([title,'-','%02d' % i,'.',suffix])
 	try:
-		print "Downloading \"%s\"..." % (filename)
+		text_info = "Trying to download \"%s\"..." % (filename)
+		print text_info
 		fullname = getFullname(filename)[0]
 		if os.path.exists(fullname):
 			print "File \"%s\" downloaded already, omitted." % (fullname)
 			return
 		elif os.path.exists(filename):
 			if judgeAvailable(filename, url):
+				print "File \"%s\" downloaded already, omitted." % (filename)
 				return filename
 			else:
 				os.remove(filename)
 
 		urllib.urlretrieve(url,filename, cbk)
-		print "file \"%s\" has been saved!" % (filename)
+		print "\nFile \"%s\" has been saved!" % (filename)
 		return filename
 	except KeyboardInterrupt:
 		print "Manually interupted,cleaning..."
@@ -248,7 +257,6 @@ def merge(files):
        	else:
 		print "File type not supported!"
 
-
 def Usage():
 	"Usage function."
 	usageInfo = '''
@@ -275,10 +283,20 @@ def main():
 		print '***Illegal url given***'
 		print 'Currently only \"tudou.com\" supported!'
 		Usage()
+	if not os.path.exists(outputDir):
+		os.mkdir(outputDir)
+	print '***Changing working directory to:\"%s\"' % (outputDir),
+	try:
+		os.chdir(outputDir)
+		print "Done!"
+	except:
+		print "Failed! Will use \"%s\" as working directory." % (os.getcwd())
+	print '--------Misson Launched---------'
 	if sys.argv[1] == 'v':
 		singleDownload(sys.argv[2])
 	else:
 		albumDownload(sys.argv[2])
+	print '------Misson Accomplished-------'
 
 def albumDownload(url):
 	try:
@@ -290,6 +308,15 @@ def albumDownload(url):
 		print "Cannot download given album!"
 		return
 	title = re.search(r'title:\s*\'(.*)\'\s*,',fs).group(1).encode('utf-8')
+	try:
+		print 'Entering list directory:\"%s\"' % (title),
+		if not os.path.exists(title):
+			os.mkdir(title)
+		os.chdir(title)
+		print 'Done!'
+	except:
+		print 'Failed!Use \"%s\" instead!"' % (os.getcwd())
+
 	soku_url = 'http://www.soku.com/v?keyword=' + repr(title).replace(r'\x','%')[1:-1]
 
 	try:
