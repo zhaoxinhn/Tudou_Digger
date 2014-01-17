@@ -31,16 +31,16 @@ class videoHtml(object):
 		self.url = url
 
 	def fetchHtml(self):
-		if not self.url:
-			return
+        assert self.url
 		if not self.url.startswith("http://"):
 			self.url = 'http://' + self.url
 		
 		try:
 			self.html = urllib.urlopen(self.url).read()
-		except:
-			print "Html fetching failed!"
+		except IOError as e:
+			print "Html fetching failed: %s" % e
 			return
+        
 		try:
 			self.html = self.html.decode('utf-8')
 		except:
@@ -48,16 +48,18 @@ class videoHtml(object):
 
 		if self.html:
 			self.html = self.html
+            # 首先尝试寻找segs字段，读取视频的k值
 			self.rs = re.search(r'segs:\s*\'{(.*?)}]}\'', self.html)
 			self.title = re.search(r',kw:\s*\"(.*?)\"', self.html)
 		if not self.rs:
+            # 如果未找到k，则尝试读取vcode
 			self.vcode = re.search(r',vcode:\s*\'(.*?)\'', self.html)
 			if not self.vcode:
 				print "Cannot find proper video address!"
 				return
 			else:
 				self.vcode = self.vcode.group(1)
-
+        #正确分离到title后，提取出来
 		if self.title:
 			self.title = self.title.group(1)
 
@@ -74,9 +76,12 @@ class videoHtml(object):
 
 	def parseKey(self):
 		lines = self.rs.group(1).replace('"','').split('}],')
+        # 分离得到代表视频文件质量的代码
 		self.q = int(lines[0].split(':')[0])
+        
 		i = 0
 		flag = 0
+        # 遍历所有的信息，得到质量最高的self.q以及相应的序号flag
 		for line in lines:
 			if int(line.split(':')[0]) > self.q:
 				self.q = int(line.split(':')[0])
@@ -84,7 +89,8 @@ class videoHtml(object):
 			i = i + 1
 		vString = lines[flag].split('[{')[1]
 		vInfo = vString.split('},{')
-
+        
+        # 得到视频文件的序号以及k值，存入self.parts，self.ks
 		for info in vInfo:
 			infoList = info.split(',')
 			self.parts.append(infoList[1].split(':')[1])
@@ -93,9 +99,9 @@ class videoHtml(object):
 
 
 	def parseUrl(self):
-		"parse video url"
-		if not self.q:
-			return
+		"""parse video url"""
+        assert self.q
+        # 解析视频文件的真实地址，存入self.vurls
 		baseUrl = 'http://v2.tudou.com/f?id='
 		for k in self.ks:
 			url = baseUrl + k
@@ -110,7 +116,7 @@ class videoHtml(object):
 		print self.vurls
 
 	def parseVcode(self):
-		"parse vcode"
+		"""parse vcode"""
 		#url = 'http://v.youku.com/player/getPlayList/VideoIDS/' + self.vcode
 		url = 'http://v.youku.com/player/getPlayList/VideoIDS/' + self.vcode + '/timezone/+08/version/5/source/out/Sc/2?n=3&ran=9109&password='
 		tempHtml = ''
@@ -123,15 +129,19 @@ class videoHtml(object):
 			tempHtml.decode('gbk')
 		except:
 			tempHtml.decode('utf-8')
-
+        	
+		# 获取解密的种子
 		seed = int(re.search(r'\"seed\":(\d+)',tempHtml).group(1))
+		# streamfileids,形如65*34*22*....的序列
 		streamfs = re.search(r'\"streamfileids\":\{(.*?)\}', tempHtml).group(1)
+		# 解析得到关键字的字典
         	d = {}
         	for stream in streamfs.replace('"','').split(','):
 			(s,i) = stream.split(':')
 			d[s] = i
 
         	ids = []
+		# 依次尝试各种质量的视频，优先hd3，然后hd2，之后是mp4，最后flv
         	for stream in ['hd3','hd2','mp4','flv']:
             		try:
                 		ids = d[stream].split('*')[:-1]
@@ -142,7 +152,8 @@ class videoHtml(object):
 			f_type = 'mp4'
 		else:
 			f_type = 'flv'
-		
+
+		# 解析具体地址
 		s = list("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ/\\:._-1234567890")
         	mixed = ''
         	while s:
@@ -165,6 +176,7 @@ class videoHtml(object):
 
 def getFullname(partname):
 	"""Get merged file name."""
+	# 根据分段视频文件的名称得到合并后的文件名
 	ns = re.search(r'(.*?)\-\d+\.([a-zA-Z0-9]+)', partname)
 	try:
                 (name, suffix) = ns.group(1), ns.group(2)
@@ -175,12 +187,14 @@ def getFullname(partname):
 	return (fullname, suffix)
 
 class Printer():
+	# 单行现实动态信息
 	def __init__(self,data):
 		sys.stdout.write("\r\x1b[K" + data.__str__())
 		sys.stdout.flush()
 	
 def cbk(a, b, c): 
-	'''回调函数 @a: 已经下载的数据块  @b: 数据块的大小  @c: 远程文件的大小'''
+	"""Callback function for urllib.urlretrieve()"""
+	# @a: 已经下载的数据块  @b: 数据块的大小  @c: 远程文件的大小
 	per = 100.0 * a * b / c 
     	if per > 100: 
         	per = 100 
@@ -189,6 +203,7 @@ def cbk(a, b, c):
 
 def judgeAvailable(filename, url):
 	"""Judge if existing filename correctly downloaded from url."""
+	# 判断已经下载的文件是否正确可用
 	fLen = os.path.getsize(filename)
 	p = urllib.urlopen(url)
 	tLen = int(p.info().getrawheader('Content-Length').replace('\r\n',''))
@@ -208,11 +223,13 @@ def download(url,title,type,i=0):
 		suffix = re.search(r'http:\/\/.*?st\/(.*?)\/fileid', url).group(1)
 	else:
 		suffix = ''
+	# 得到单个视频文件的名称
 	filename = ''.join([title,'-','%02d' % i,'.',suffix])
 	try:
 		text_info = "Trying to download \"%s\"..." % (filename)
 		print text_info
 		fullname = getFullname(filename)[0]
+		# 如果已经存在合适的文件，跳过此次下载
 		if os.path.exists(fullname):
 			print "File \"%s\" downloaded already, omitted." % (fullname)
 			return
@@ -226,6 +243,7 @@ def download(url,title,type,i=0):
 		urllib.urlretrieve(url,filename, cbk)
 		print "\nFile \"%s\" has been saved!" % (filename)
 		return filename
+	# 如果手动输入Ctrl-C中断程序，则删除未完成的下载
 	except KeyboardInterrupt:
 		print "\nManually interupted,cleaning..."
 		if os.path.exists(filename):
@@ -299,6 +317,7 @@ def main():
 	print '------Misson Accomplished-------'
 
 def albumDownload(url):
+	"""Album download function."""
 	try:
 		fs = urllib.urlopen(url).read().decode('utf-8')
 	except:
@@ -317,6 +336,7 @@ def albumDownload(url):
 	except:
 		print 'Failed!Use \"%s\" instead!"' % (os.getcwd())
 
+	# 视频来源依然是youku，从soku链接解析视频地址
 	soku_url = 'http://www.soku.com/v?keyword=' + repr(title).replace(r'\x','%')[1:-1]
 
 	try:
@@ -328,12 +348,15 @@ def albumDownload(url):
 		return
 
 	pattern = r'<a\s+href=\'(http\:\/\/.*?tudou.com/.*?.html)\'.*?\>(\d+)\<'
-	vs = re.findall(pattern, fs, re.S)
+	# 得到所有的地址
+	vs = re.findall(pattern, fs, re.S) 
 
 	for (url,seq) in vs:
-		singleDownload(url)#,title=str(cs.index(c)+1))
+		singleDownload(url)
 
 def singleDownload(url='',code='',title=''):
+	"""Single download function."""
+	# url 和 code必须有一个存在
 	assert url or code, "Argument error!"
 	if code:
 		assert title
