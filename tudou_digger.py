@@ -8,6 +8,7 @@
 
 import os,sys
 import urllib,re
+from time import time
 
 class videoHtml(object):
 	def __init__(self,url='',vcode='',title=''):
@@ -159,8 +160,38 @@ class videoHtml(object):
 			no = '%02x' % int(partno)
 			self.vurls.append('http://f.youku.com/player/getFlvPath/sid/00_00/st/%s/fileid/%s?K=%s' % (f_type, vid[:8]+no.upper()+vid[10:],key))
 		return
-		
 
+def getFullname(partname):
+	"""Get merged file name."""
+	ns = re.search(r'(.*?)\-\d+\.([a-zA-Z0-9]+)', partname)
+	try:
+                (name, suffix) = ns.group(1), ns.group(2)
+        except:
+                print "Filename parsing error!"
+                return
+        fullname = name + '.' + suffix
+	return (fullname, suffix)
+	
+def cbk(a, b, c): 
+	'''回调函数 @a: 已经下载的数据块  @b: 数据块的大小  @c: 远程文件的大小'''
+	per = 100.0 * a * b / c 
+    	if per > 100: 
+        	per = 100 
+    	#print '%.2f%%' % per,	
+	#time.sleep(1)
+
+def judgeAvailable(filename, url):
+	"""Judge if existing filename correctly downloaded from url."""
+	fLen = os.path.getsize(filename)
+	p = urllib.urlopen(url)
+	tLen = int(p.info().getrawheader('Content-Length').replace('\r\n',''))
+	p.close()
+	
+	if fLen == tLen:
+		return True
+	else:
+		return False
+	
 def download(url,title,type,i=0):
 	"Download video from internet"
 	url = url.replace('amp;','')
@@ -172,24 +203,33 @@ def download(url,title,type,i=0):
 		suffix = ''
 	filename = ''.join([title,'-','%02d' % i,'.',suffix])
 	try:
-		print "downloading \"%s\"..." % (filename)
-		if not os.path.isfile(filename):
-			urllib.urlretrieve(url,filename)
+		print "Downloading \"%s\"..." % (filename)
+		fullname = getFullname(filename)[0]
+		if os.path.exists(fullname):
+			print "File \"%s\" downloaded already, omitted." % (fullname)
+			return
+		elif os.path.exists(filename):
+			if judgeAvailable(filename, url):
+				return filename
+			else:
+				os.remove(filename)
+
+		urllib.urlretrieve(url,filename, cbk)
 		print "file \"%s\" has been saved!" % (filename)
 		return filename
+	except KeyboardInterrupt:
+		print "Manually interupted,cleaning..."
+		if os.path.exists(filename):
+			os.remove(filename)
+		print "Done!"
+		sys.exit(1)
 	except:
 		print "Downlaod failed!"
 		return
 
 def merge(files):
 	"""Merge files into one."""
-	ns = re.search(r'(.*?)\-\d+\.([a-zA-Z0-9]+)', files[0])
-	try:
-                (name, suffix) = ns.group(1), ns.group(2)
-        except:
-                print "Filename parsing error!"
-                return
-        fullname = name + '.' + suffix
+	(fullname, suffix) = getFullname(files[0])
 	if suffix == 'flv':
 		from flv_join import concat_flvs as concat
 		
@@ -200,11 +240,11 @@ def merge(files):
 	
 	if concat:
 		concat(files, fullname)
+		print "File:\"%s\" have been merged!" % (fullname)
         	print "Deleting temp files...",
         	for fp in files:
                 	os.remove(fp)
         	print "Done"
-		print "File:\"%s\" have been merge!" % (fullname)
        	else:
 		print "File type not supported!"
 
