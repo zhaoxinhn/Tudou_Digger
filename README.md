@@ -11,5 +11,7 @@ Author:
 lwldcr@gmail.com
 
 Usage:
+
 python tudou_digger.py v "http://video_url"
+
 python tudou_digger.py l "http://vidoe_list_url"
