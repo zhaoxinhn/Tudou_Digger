@@ -31,7 +31,7 @@ class videoHtml(object):
 		self.url = url
 
 	def fetchHtml(self):
-        assert self.url
+        	assert self.url
 		if not self.url.startswith("http://"):
 			self.url = 'http://' + self.url
 		
@@ -76,12 +76,12 @@ class videoHtml(object):
 
 	def parseKey(self):
 		lines = self.rs.group(1).replace('"','').split('}],')
-        # 分离得到代表视频文件质量的代码
+        	# 分离得到代表视频文件质量的代码
 		self.q = int(lines[0].split(':')[0])
         
 		i = 0
 		flag = 0
-        # 遍历所有的信息，得到质量最高的self.q以及相应的序号flag
+        	# 遍历所有的信息，得到质量最高的self.q以及相应的序号flag
 		for line in lines:
 			if int(line.split(':')[0]) > self.q:
 				self.q = int(line.split(':')[0])
@@ -90,7 +90,7 @@ class videoHtml(object):
 		vString = lines[flag].split('[{')[1]
 		vInfo = vString.split('},{')
         
-        # 得到视频文件的序号以及k值，存入self.parts，self.ks
+        	# 得到视频文件的序号以及k值，存入self.parts，self.ks
 		for info in vInfo:
 			infoList = info.split(',')
 			self.parts.append(infoList[1].split(':')[1])
@@ -100,8 +100,8 @@ class videoHtml(object):
 
 	def parseUrl(self):
 		"""parse video url"""
-        assert self.q
-        # 解析视频文件的真实地址，存入self.vurls
+        	assert self.q
+        	# 解析视频文件的真实地址，存入self.vurls
 		baseUrl = 'http://v2.tudou.com/f?id='
 		for k in self.ks:
 			url = baseUrl + k
