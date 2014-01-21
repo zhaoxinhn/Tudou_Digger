@@ -42,9 +42,9 @@ class videoHtml(object):
 			return
         
 		try:
-			self.html = self.html.decode('utf-8')
+			self.html = self.html.decode('gbk','ignore')
 		except:
-			self.html = self.html.decode('gbk')
+			self.html = self.html.decode('utf-8','ignore')
 
 		if self.html:
 			self.html = self.html
@@ -126,9 +126,9 @@ class videoHtml(object):
 			pass
 
 		try:
-			tempHtml.decode('gbk')
+			tempHtml.decode('gbk','ignore')
 		except:
-			tempHtml.decode('utf-8')
+			tempHtml.decode('utf-8','ignore')
         	
 		# 获取解密的种子
 		seed = int(re.search(r'\"seed\":(\d+)',tempHtml).group(1))
@@ -290,7 +290,7 @@ def judgeUrl(url):
 		return 0
 	return 1
 
-def main():
+def main(*args, **kwargs):
 	"main function"
 	assert len(sys.argv) == 3, Usage()
 	if len(sys.argv) != 3:
