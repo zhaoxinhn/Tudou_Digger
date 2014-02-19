@@ -10,7 +10,10 @@ import sys, os
 import re
 import urllib
 
-videoDir = 'D:\\Video\\'
+if os.name == 'nt':
+	videoDir = 'D:\\Video\\'
+else:
+	videoDir = '/Volumes/HDD_OSX_Data/Video/'
 
 class Course(object):
 	def __init__(self,url=''):
@@ -28,13 +31,10 @@ class Course(object):
 		if self.parseDir():
 			# 推导得到将要下载的文件信息列表
 			keylist = []
-			i = 0
-			#for (s,u,n) in self.ns:
-			#	name = '-'.join([s,n])
-			#	vurl = self.vurls[i]
-			#	keylist.append((name,vurl))
-			#	i = i + 1
-			keylist = [ ('-'.join([s,n]), self.vurls[int(re.search(r'(\d+)',s).group(1)) - 1 ]) for (s,u,n) in self.ns ]
+			for (i, url) in enumerate(self.vurls):
+				vname = '-'.join([self.ns[i][0], self.ns[i][2]])
+				keylist.append((vname, url))
+			#keylist = [ ('-'.join([s,n]), self.vurls[int(re.search(r'(\d+)',s).group(1)) - 1 ]) for (s,u,n) in self.ns ] # 序列不是从小到大升序会导致问题
 			for (name, vurl) in keylist:
 				self.download(vurl,name)
 
